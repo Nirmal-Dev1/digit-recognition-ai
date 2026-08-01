@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Digit Recognizer</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --panel: #141b2e;
+    --panel-2: #0d1424;
+    --accent: #6366f1;
+    --accent2: #22d3ee;
+    --text: #e7ebf3;
+    --muted: #8b95ab;
+    --border: #253048;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(circle at top, #16213e, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  header {
+    text-align: center;
+    padding: 28px 20px 10px;
+  }
+  header .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  header .logo span.dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  h1 {
+    margin: 10px 0 6px;
+    font-size: clamp(24px, 6vw, 32px);
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  p.sub {
+    margin: 0 auto;
+    max-width: 420px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  }
+
+  .canvas-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .canvas-frame {
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    background: #000;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 320px;
+  }
+  button {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+  }
+  button:active { transform: scale(0.96); }
+  #predictBtn {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    color: #061019;
+    box-shadow: 0 6px 20px rgba(99,102,241,0.35);
+  }
+  #clearBtn {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .result-wrap { display: flex; flex-direction: column; gap: 18px; }
+  .prediction-box {
+    background: var(--panel-2);
+    border-radius: 14px;
+    padding: 22px;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+  #predDigit {
+    font-size: 58px;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    line-height: 1;
+  }
+  #confidence { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  #statusMsg { color: #f87171; font-size: 13px; margin-top: 8px; display: none; }
+
+  .bars-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .bars { display: flex; flex-direction: column; gap: 7px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .bar-label { width: 14px; color: var(--muted); font-weight: 600; }
+  .bar-track { flex: 1; background: var(--panel-2); border-radius: 6px; height: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 0%; transition: width 0.4s ease; }
+  .bar-val { width: 42px; text-align: right; color: var(--muted); }
+
+  footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  /* Desktop / tablet layout */
+  @media (min-width: 720px) {
+    main {
+      grid-template-columns: 1fr 1fr;
+      align-items: stretch;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="dot"></span>Neural Vision</div>
+  <h1>Digit Recognizer</h1>
+  <p class="sub">Draw any digit from 0-9 in the box below. The model reads your stroke and predicts in real time.</p>
+</header>
+
+<main>
+  <section class="panel canvas-wrap">
+    <div class="canvas-frame">
+      <canvas id="board" width="280" height="280"></canvas>
+    </div>
+    <div class="btn-row">
+      <button id="clearBtn">Clear</button>
+      <button id="predictBtn">Predict</button>
+    </div>
+  </section>
+
+  <section class="panel result-wrap">
+    <div class="prediction-box">
+      <div id="predDigit">–</div>
+      <div id="confidence">Draw a digit to begin</div>
+      <div id="statusMsg"></div>
+    </div>
+    <div>
+      <div class="bars-title">Class probabilities</div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+</main>
+
+<footer>Runs locally through a Flask + ONNX Runtime backend.</footer>
+
+<script>
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+let drawing = false;
+let lastPos = null;
+
+function resetCanvas() {
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 16;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+}
+resetCanvas();
+
+// Map pointer coords to the canvas's internal 280x280 resolution,
+// regardless of how large it's displayed on screen (mobile vs desktop).
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
+  };
+}
+
+function startDraw(e) {
+  drawing = true;
+  lastPos = getPos(e);
+  e.preventDefault();
+}
+function draw(e) {
+  if (!drawing) return;
+  const pos = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastPos.x, lastPos.y);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  lastPos = pos;
+  e.preventDefault();
+}
+function stopDraw() { drawing = false; lastPos = null; }
+
+canvas.addEventListener("mousedown", startDraw);
+canvas.addEventListener("mousemove", draw);
+canvas.addEventListener("mouseup", stopDraw);
+canvas.addEventListener("mouseleave", stopDraw);
+canvas.addEventListener("touchstart", startDraw, { passive: false });
+canvas.addEventListener("touchmove", draw, { passive: false });
+canvas.addEventListener("touchend", stopDraw);
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  resetCanvas();
+  document.getElementById("predDigit").textContent = "–";
+  document.getElementById("confidence").textContent = "Draw a digit to begin";
+  document.getElementById("statusMsg").style.display = "none";
+  document.getElementById("bars").innerHTML = "";
+});
+
+document.getElementById("predictBtn").addEventListener("click", async () => {
+  const predictBtn = document.getElementById("predictBtn");
+  const statusMsg = document.getElementById("statusMsg");
+  statusMsg.style.display = "none";
+  predictBtn.disabled = true;
+  document.getElementById("confidence").textContent = "Predicting...";
+
+  // Downscale internal 280x280 canvas -> 28x28 to match model input (1,28,28,1)
+  const small = document.createElement("canvas");
+  small.width = 28;
+  small.height = 28;
+  const sctx = small.getContext("2d");
+  sctx.drawImage(canvas, 0, 0, 28, 28);
+
+  small.toBlob(async (blob) => {
+    const formData = new FormData();
+    formData.append("image", blob, "digit.png");
+
+    try {
+      const res = await fetch("/predict", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Server error");
+      }
+      renderResult(data);
+    } catch (err) {
+      statusMsg.textContent = "Backend error: " + err.message;
+      statusMsg.style.display = "block";
+      document.getElementById("confidence").textContent = "";
+    } finally {
+      predictBtn.disabled = false;
+    }
+  }, "image/png");
+});
+
+function renderResult(data) {
+  const pred = data.prediction;
+  const probs = data.probs;
+  document.getElementById("predDigit").textContent = pred;
+  document.getElementById("confidence").textContent =
+    "Confidence: " + (probs[pred] * 100).toFixed(1) + "%";
+
+  const bars = document.getElementById("bars");
+  bars.innerHTML = "";
+  probs.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    row.innerHTML = `
+      <div class="bar-label">${i}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(p * 100).toFixed(1)}%"></div></div>
+      <div class="bar-val">${(p * 100).toFixed(1)}%</div>
+    `;
+    bars.appendChild(row);
+  });
+}
+</script>
+
+</body>
+</html>
